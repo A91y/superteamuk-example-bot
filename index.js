@@ -10,12 +10,16 @@ app.use(bodyParser.json());
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
+const admins = ['TELEGRAM_ADMIN_ID'];
+
 const welcomeMessage = `
 Welcome to SuperteamUK! We're here to help you learn, earn, and build on the Solana blockchain. Let's get you started.
 `;
+
 const orientationIntro = `
 We'll guide you through the basics of SuperteamUK and help you choose the right pathway for your goals. Ready to begin?
 `;
+
 const pathwayIntro = `
 SuperteamUK offers three main pathways to help you succeed:
 - Builder: Learn how to code on Solana and accelerate your skills with our developer resources.
@@ -23,6 +27,7 @@ SuperteamUK offers three main pathways to help you succeed:
 - Creator: Empowerment for artists, designers, and content creators to find their voice and build a community of collectors, clients, and supporters.
 Which pathway are you interested in?
 `;
+
 const pathways = {
   Builder: `
 You've chosen the Builder Pathway! Here's how we can help you:
@@ -50,6 +55,23 @@ Ready to dive deeper?
 `,
 };
 
+const adminMenu = {
+  contentUpdates: `
+Select the section to edit:
+- FAQs
+- Pathways
+- Events
+  `,
+  broadcasts: `
+Type your broadcast message:
+  `,
+  groupManagement: `
+Select an option:
+- Create New Group
+- Edit Existing Group
+  `
+};
+
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const isGroupChat = msg.chat.type !== 'private';
@@ -70,6 +92,23 @@ bot.onText(/\/start/, (msg) => {
         ]
       }
     });
+  }
+});
+
+bot.onText(/\/adminlogin/, (msg) => {
+  const chatId = msg.chat.id;
+  if (admins.includes(msg.from.id.toString())) {
+    bot.sendMessage(chatId, 'Welcome, Admin!', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Content Updates', callback_data: 'admin_content_updates' }],
+          [{ text: 'Broadcasts', callback_data: 'admin_broadcasts' }],
+          [{ text: 'Group Management', callback_data: 'admin_group_management' }]
+        ]
+      }
+    });
+  } else {
+    bot.sendMessage(chatId, 'You do not have permission to access admin commands.');
   }
 });
 
@@ -139,10 +178,45 @@ What would you like to explore first?
         ]
       }
     });
+  } else if (data === 'admin_content_updates') {
+    bot.sendMessage(chatId, adminMenu.contentUpdates, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'FAQs', callback_data: 'edit_faqs' }],
+          [{ text: 'Pathways', callback_data: 'edit_pathways' }],
+          [{ text: 'Events', callback_data: 'edit_events' }]
+        ]
+      }
+    });
+  } else if (data === 'admin_broadcasts') {
+    bot.sendMessage(chatId, adminMenu.broadcasts);
+
+    // Listen for the next message from the admin
+    bot.once('message', (msg) => {
+      const broadcastMessage = msg.text;
+      bot.sendMessage(chatId, `Broadcast message sent: ${broadcastMessage}`);
+      // Send the broadcast message to all admins :: Can be updated later
+      admins.forEach((admin) => {
+        bot.sendMessage(admin, broadcastMessage);
+      });
+    });
+  } else if (data === 'admin_group_management') {
+    bot.sendMessage(chatId, adminMenu.groupManagement, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: 'Create New Group', callback_data: 'create_group' }],
+          [{ text: 'Edit Existing Group', callback_data: 'edit_group' }]
+        ]
+      }
+    });
   }
 });
 
-
+bot.onText(/\/getid/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    bot.sendMessage(chatId, `Your user ID is: ${userId}`);
+  });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
